@@ -1,4 +1,6 @@
-# History
+
+# <img width="996" height="548" alt="title_screen" src="https://github.com/user-attachments/assets/58bac9b3-d7f5-4a8c-94ab-7f9258e0ce92" />
+History
 
 In 1993, **id Software** released the seminal game DOOM, to universal acclaim.
 
