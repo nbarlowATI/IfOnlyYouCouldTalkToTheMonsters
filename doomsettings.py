@@ -144,3 +144,5 @@ WAD_THING_FLAGS = {
     5: "Not in SP",
     6: "Not in Coop"
 }
+
+OLLAMA_MODEL = "llama3.2:latest" #"qwen3-v1:8b"

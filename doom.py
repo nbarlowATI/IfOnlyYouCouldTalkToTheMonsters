@@ -1,4 +1,7 @@
 import sys
+import json
+import random
+import threading
 import pygame as pg
 
 from wad_data import WADData
@@ -8,12 +11,12 @@ from bsp import BSP
 from object_handler import ObjectHandler
 from raycasting import RayCasting
 from seg_handler import SegHandler
-from sounds import SoundEffect
 from view_renderer import ViewRenderer
 from weapon import Weapon
 
 from events import *
 from doomsettings import *
+from talk import Talk
 
 
 class DoomEngine:
@@ -31,6 +34,8 @@ class DoomEngine:
         self.last_enter_time = 0        # for double-Enter detection
         self.DOUBLE_ENTER_MS = 400      # max gap between two Enters to count as double
         self.wad_path = wad_path
+        self.talk_engine = Talk()
+        self._response_queue = []       # filled by background threads: (npc, text, delta, player_text)
         self.screen = pg.display.set_mode(WIN_RES, pg.SCALED)
         self.framebuffer = pg.surfarray.array3d(self.screen)
         pg.mouse.set_visible(False)
@@ -65,6 +70,20 @@ class DoomEngine:
             door.update()
         self.object_handler.update()
         self.view_renderer.update()
+        # Process completed LLM responses from background threads
+        while self._response_queue:
+            npc, text, delta, player_text = self._response_queue.pop(0)
+            npc.waiting_for_llm = False
+            from npc import NPCState
+            if npc.state not in (NPCState.dead, NPCState.dying):
+                npc.conversation_history.append({"player": player_text, "npc": text})
+                npc.friendliness = max(0, min(100, npc.friendliness + delta))
+                print(f"{npc.npc_name} friendliness: {npc.friendliness} (delta: {delta:+d})")
+                if self.npc_response_npc is npc:
+                    self.npc_response_words = text.split()
+                    self.npc_words_shown = 0
+                    self.npc_word_time = pg.time.get_ticks()
+
         # Advance NPC response word by word
         if self.npc_response_npc is not None:
             from npc import NPCState
@@ -139,14 +158,19 @@ class DoomEngine:
                                 if d < nearest_dist:
                                     nearest_dist = d
                                     nearest_npc = npc
-                            if nearest_npc:
-                                # Clear player bubble; start NPC word-by-word response
+                            if nearest_npc and not nearest_npc.waiting_for_llm:
+                                player_text = self.talk_text
                                 self.talk_text = ""
-                                response = "This is a test. This is a test."
                                 self.npc_response_npc = nearest_npc
-                                self.npc_response_words = response.split()
-                                self.npc_words_shown = 0
+                                self.npc_response_words = ["..."]
+                                self.npc_words_shown = 1
                                 self.npc_word_time = pg.time.get_ticks()
+                                nearest_npc.waiting_for_llm = True
+                                threading.Thread(
+                                    target=self._fetch_npc_response,
+                                    args=(nearest_npc, player_text),
+                                    daemon=True,
+                                ).start()
                             else:
                                 # No NPC nearby — exit talk mode normally
                                 self.talk_mode = False
@@ -188,6 +212,108 @@ class DoomEngine:
                 self.player.handle_fire_event(e)
 
 
+    def _fetch_npc_response(self, npc, player_text):
+        context = npc.get_character_context()
+        history_lines = []
+        for turn in npc.conversation_history:
+            history_lines.append(f"Player: {turn['player']}")
+            history_lines.append(f"{npc.npc_name}: {turn['npc']}")
+        history_lines.append(f"Player: {player_text}")
+        conversation = "\n".join(history_lines)
+        try:
+            raw = self.talk_engine.get_response(context, conversation)
+            data = json.loads(raw.message.content)
+            text = data.get('text', '')
+            delta = int(data.get('friendliness_delta', 0))
+        except Exception as e:
+            print(f"LLM response error: {e}")
+            print(f"Raw response content: {repr(raw.message.content)}")
+            text = "..."
+            delta = 0
+        self._response_queue.append((npc, text, delta, player_text))
+
+    def _play_wad_sound(self, lump_name):
+        import io, wave
+        from wad_reader import WADReader
+        reader = WADReader(self.wad_path)
+        try:
+            for entry in reader.directory:
+                if entry['lump_name'].upper() == lump_name.upper():
+                    reader.wad_file.seek(entry['lump_offset'])
+                    raw = reader.wad_file.read(entry['lump_size'])
+                    num_samples = raw[1] + (raw[2] << 8)
+                    samples = raw[8:8 + num_samples]
+                    buf = io.BytesIO()
+                    with wave.open(buf, 'wb') as wf:
+                        wf.setnchannels(1)
+                        wf.setsampwidth(1)
+                        wf.setframerate(SAMPLE_RATE)
+                        wf.writeframes(samples)
+                    buf.seek(0)
+                    pg.mixer.init()
+                    pg.mixer.Sound(buf).play()
+                    break
+        finally:
+            reader.close()
+
+    def _melt_transition(self, from_surf):
+        """Classic DOOM melt wipe: columns slide down at staggered speeds."""
+        COLS = DOOM_W  # 320 columns
+        col_w = WIDTH // COLS  # pixels per column (= SCALE = 4)
+
+        # Initialise column offsets: y[i] < 0 means delayed start,
+        # y[i] >= 0 means the column has shifted that many pixels down.
+        y = [0] * COLS
+        y[0] = -(random.randint(0, 15))
+        for i in range(1, COLS):
+            y[i] = max(-15, min(0, y[i - 1] + random.randint(-1, 1)))
+
+        clock = pg.time.Clock()
+        while True:
+            for e in pg.event.get():
+                if e.type == pg.QUIT:
+                    self.running = False
+                    return
+
+            self.screen.fill('black')
+            all_done = True
+            for i in range(COLS):
+                x = i * col_w
+                if y[i] < 0:
+                    y[i] += 1
+                    all_done = False
+                    # Column hasn't started melting — draw it in place
+                    self.screen.blit(from_surf, (x, 0), pg.Rect(x, 0, col_w, HEIGHT))
+                elif y[i] < HEIGHT:
+                    all_done = False
+                    dy = (y[i] + 1) if y[i] < 16 else 8
+                    y[i] = min(HEIGHT, y[i] + dy)
+                    # Draw the column shifted downward; black shows above it
+                    remaining = HEIGHT - y[i]
+                    if remaining > 0:
+                        self.screen.blit(from_surf, (x, y[i]), pg.Rect(x, 0, col_w, remaining))
+
+            pg.display.flip()
+            clock.tick(70)  # 2× original DOOM tic rate
+            if all_done:
+                break
+
+    def show_title_screen(self):
+        img = pg.image.load('assets/title_screen.png')
+        img = pg.transform.scale(img, WIN_RES)
+        while self.running:
+            for e in pg.event.get():
+                if e.type == pg.QUIT or (e.type == pg.KEYDOWN and e.key == pg.K_ESCAPE):
+                    self.running = False
+                    return
+                if e.type in (pg.KEYDOWN, pg.MOUSEBUTTONDOWN):
+                    self._play_wad_sound('DSPISTOL')
+                    self._melt_transition(img)
+                    return
+            self.screen.blit(img, (0, 0))
+            pg.display.flip()
+            self.clock.tick(60)
+
     def run(self):
         while self.running:
             self.update()
@@ -199,13 +325,14 @@ class DoomEngine:
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         map = sys.argv[1]
+        difficulty = int(sys.argv[2]) if len(sys.argv) > 2 else 1
+        game = DoomEngine()
+        game.load(map, difficulty)
+        game.run()
     else:
-        map = "E1M1"
-    if len(sys.argv) > 2:
-        difficulty = int(sys.argv[2])
-    else:
-        difficulty = 1
-    game = DoomEngine()
-    game.load(map, difficulty)
-    game.run()
+        game = DoomEngine()
+        game.show_title_screen()
+        if game.running:
+            game.load("E1M1", 1)
+            game.run()
         

@@ -7,6 +7,7 @@ from doomsettings import *
 from thing import Thing
 from projectile import ImpFireball
 from sounds import SoundEffect
+from character_contexts import npc_types, names as npc_names
 
 class NPCState(Enum):
     standing = 0
@@ -56,6 +57,31 @@ class NPC(Thing):
         self.is_shooting_anim = False
         self.shoot_anim_index = 0
         self.shoot_anim_time = 0
+        # Character identity — subclasses set TYPE_ID, then call _init_character_context()
+        self.npc_name = "Unknown"
+        self.friendliness = 50
+        self.conversation_history = []   # list of {"player": str, "npc": str}
+        self.waiting_for_llm = False
+
+    def _init_character_context(self):
+        ctx = next((t for t in npc_types if t['type_id'] == self.TYPE_ID), None)
+        if ctx:
+            self.friendliness = ctx['friendliness']
+        self.npc_name = random.choice(npc_names.get(self.TYPE_ID, ["Unknown"]))
+
+    def get_character_context(self):
+        ctx = next((t for t in npc_types if t['type_id'] == self.TYPE_ID), None)
+        if not ctx:
+            return f"Your name is {self.npc_name}. You are a creature in DOOM."
+        return (
+            f"Your name is {self.npc_name}. "
+            f"You are a {ctx['species']}. "
+            f"Your current friendliness toward the player is {self.friendliness} out of 100. "
+            f"Your original home was {ctx['original_home']}. "
+            f"Your goal is: {ctx['goal']}. "
+            f"You feel solidarity with: {', '.join(ctx['friends'])}. "
+            f"You distrust: {', '.join(ctx['enemies'])}."
+        )
 
     def _load_sound(self, lump_name):
         """Load a sound effect, returning None if the lump isn't in the WAD."""
@@ -220,8 +246,11 @@ class NPC(Thing):
 
 
 class ZombieMan(NPC):
+    TYPE_ID = 3004
+
     def __init__(self, engine, pos, angle):
         super().__init__(engine, pos, angle)
+        self._init_character_context()
         self.sprite_name_base = "POSS"
         self.standing_frame_suffixes = ["A"]
         self.walking_frame_suffixes = ["B","C","D"]
@@ -245,8 +274,11 @@ class ZombieMan(NPC):
 
 
 class ShotgunGuy(NPC):
+    TYPE_ID = 9
+
     def __init__(self, engine, pos, angle):
         super().__init__(engine, pos, angle)
+        self._init_character_context()
         self.sprite_name_base = "SPOS"
         self.standing_frame_suffixes = ["A"]
         self.walking_frame_suffixes = ["B","C","D","E"]
@@ -269,10 +301,12 @@ class ShotgunGuy(NPC):
 
 
 class Imp(NPC):
+    TYPE_ID = 3001
     TURN_RANGE = 700  # world units; Imp starts tracking the player within this distance
 
     def __init__(self, engine, pos, angle):
         super().__init__(engine, pos, angle)
+        self._init_character_context()
         self.sprite_name_base = "TROO"
         self.standing_frame_suffixes = ["A"]
         self.walking_frame_suffixes = ["B","C","D","E"]

@@ -8,5 +8,6 @@ dependencies = [
     "clevercsv>=0.8.4",
     "numba>=0.64.0",
     "numpy>=2.2.6",
+    "ollama>=0.6.1",
     "pygame>=2.6.1",
 ]
