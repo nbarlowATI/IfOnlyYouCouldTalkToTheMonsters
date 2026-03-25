@@ -6,14 +6,37 @@ In 1993, **id Software** released the seminal game DOOM, to universal acclaim.
 
 Well, nearly universal - the UK videogame magazine **Edge** praised the graphics and the atmosphere, but felt the game design was somewhat derivative.   *"If only you could talk to the monsters"*, they mused, in their 7/10 review.
 
-A mere 33 years later, this is an attempt to right that historic wrong - a version of DOOM where you actually can talk to the monsters.   And they can talk back.   And your progress through the game is not just based on surviving, but by making friends with the various varieties of hellspawn that you meet along the way.
+A mere 33 years later, this is an attempt to right that historic wrong - a version of DOOM where you actually can talk to the monsters.   And they can talk back.   And your progress through the game is not just based on surviving, but by making friends with the various types of hellspawn that you meet along the way.
 
+### How to run
+
+Install the `uv` package manager following instructions [here](https://docs.astral.sh/uv/).   Then, from this directory, run 
+```
+uv run python doom.py
+```
+
+### Controls 
+
+* Move with the W, A, S, D keys.
+* Turn with the arrow keys or mouse/touchpad
+* Fire weapon with the left mouse click
+* Open doors / interact with buttons via Space bar.
+* Enter "talk mode" when close to a monster by pressing "t".  You can then type into the text box.
+* Exit "talk mode" by double-pressing Enter.
+* Toggle map mode by pressing "m"
+* For debugging, press "b" to toggle a view that shows the z-buffer.  This then gives a cross-hair which can be moved with the arrow keys, and "n" will print to console the value of the z-buffer at that point.
+* To exit the game, press Escape.
+
+### LLM
+
+Talking to the monsters is done by sending prompts (including situational context, as well as user dialogue) to a Large Language Model (LLM).
+The game can be played either using a local LLM via [ollama](https://ollama.com/), or by making API calls to an external LLM such as ChatGPT.   The relevant settings are in the file `doomsettings.py`, in the "LLM" section.
 
 ### Credits
 
 The basic DOOM engine is coded in Python, following this excellent tutorial from YouTuber "Coderspace" : https://www.youtube.com/playlist?list=PLi77irUVkDasNAYQPr3N8nVcJLQAlANva
 
-Various features, such as sound, collision detection, camera bob, NPCs, ornaments/collectibles, animations, door opening/closing, shooting/damage, the status bar at the bottom with Doomguy's animated face,  were then added by me, such that there was a just-about functional game of DOOM.
+Various features, such as sound, collision detection, camera bob, rendering NPCs, ornaments/collectibles, animations, door opening/closing, shooting/damage, the status bar at the bottom with Doomguy's animated face, figuring out occlusion for sprites, were then added by me, such that there was a just-about functional game of DOOM.
 
 Claude code was then brought on board, initially to tidy up things like projectile animations, picking up collectibles and keeping track of inventory.
 
