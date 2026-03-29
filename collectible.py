@@ -18,6 +18,30 @@ class Collectible(Thing):
 class HealthBonus(Collectible):
     HEALTH_AMOUNT = 1
 
+class Stimpack(Collectible):
+    HEALTH_AMOUNT = 10
+
+    def update(self):
+        if not self.exists:
+            return
+        super().update()
+        if (self.engine.player.pos - self.pos).magnitude() < HEALTH_PICKUP_RADIUS:
+            self.engine.player.pick_up_health(self.HEALTH_AMOUNT)
+            self.exists = False
+            self.engine.object_handler.objects.remove(self)
+
+class Medikit(Collectible):
+    HEALTH_AMOUNT = 25
+
+    def update(self):
+        if not self.exists:
+            return
+        super().update()
+        if (self.engine.player.pos - self.pos).magnitude() < HEALTH_PICKUP_RADIUS:
+            self.engine.player.pick_up_health(self.HEALTH_AMOUNT)
+            self.exists = False
+            self.engine.object_handler.objects.remove(self)
+
     def update(self):
         if not self.exists:
             return

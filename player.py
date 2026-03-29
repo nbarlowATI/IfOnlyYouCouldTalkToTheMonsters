@@ -84,6 +84,11 @@ class Player:
             )
 
     def take_damage(self, amount):
+        if self.armor > 0:
+            reduction = 0.5 * (self.armor / 100)
+            absorbed = amount * reduction
+            self.armor = max(0, self.armor - absorbed)
+            amount = amount - absorbed
         self.health = max(0, self.health - amount)
         self.is_in_pain = True
         self.pain_start_time = pg.time.get_ticks()
@@ -204,7 +209,7 @@ class Player:
         # if in debug mode or talk mode, disable all movement
         if self.engine.debug_mode or self.engine.talk_mode:
             return
-        mx, my = pg.mouse.get_pos()
+        mx, _ = pg.mouse.get_pos()
         if mx < MOUSE_BORDER_LEFT or mx > MOUSE_BORDER_RIGHT:
             pg.mouse.set_pos([H_WIDTH, H_HEIGHT])
         self.rel = pg.mouse.get_rel()[0]

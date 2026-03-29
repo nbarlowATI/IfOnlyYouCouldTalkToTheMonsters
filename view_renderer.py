@@ -294,18 +294,25 @@ class ViewRenderer:
 
     def draw_ammo(self):
         bar_h = self.status_bar.get_height()
-        bar_x = H_WIDTH - self.status_bar.get_width() // 2
+        bar_w = self.status_bar.get_width()
+        bar_x = H_WIDTH - bar_w // 2
         large = self.ammo_glyphs['large']
         small = self.ammo_glyphs['small']
+        # fall back to STTNUM if AMMNUM not in the WAD
+        large_glyphs = large if large else self.hud_numbers
 
-        # Current weapon ammo — large yellow AMMNUM digits, left of status bar
+        # Current weapon ammo — right-aligned to ~18.5% of bar width (matches Doom layout)
         ammo_type = WEAPON_AMMO_TYPE.get(self.player.current_weapon)
-        if ammo_type and large:
-            x = bar_x + 20
-            for ch in str(self.player.ammo[ammo_type]):
-                glyph = large.get(ch)
-                if glyph:
-                    y = HEIGHT - bar_h + (bar_h - glyph.get_height()) // 2
+        if ammo_type and large_glyphs:
+            text = str(self.player.ammo[ammo_type])
+            glyphs = [large_glyphs.get(ch) for ch in text if large_glyphs.get(ch)]
+            if glyphs:
+                right_edge = bar_x + int(bar_w * 0.185)
+                total_w = sum(g.get_width() for g in glyphs)
+                x = right_edge - total_w
+                glyph_h = glyphs[0].get_height()
+                y = HEIGHT - bar_h + (bar_h - glyph_h) // 2
+                for glyph in glyphs:
                     self.screen.blit(glyph, (x, y))
                     x += glyph.get_width()
 
@@ -314,7 +321,7 @@ class ViewRenderer:
             row_h = bar_h // 4
             glyph_h = next(iter(small.values())).get_height()
             for i, atype in enumerate(('bullets', 'shells', 'rockets', 'cells')):
-                x = bar_x + int(self.status_bar.get_width() * 0.865)
+                x = bar_x + int(bar_w * 0.865)
                 y = HEIGHT - bar_h + i * row_h + (row_h - glyph_h) // 2
                 for ch in str(self.player.ammo[atype]):
                     glyph = small.get(ch)

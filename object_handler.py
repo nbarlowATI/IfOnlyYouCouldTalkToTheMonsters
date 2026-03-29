@@ -2,7 +2,7 @@ import pygame as pg
 from pygame.math import Vector2 as vec2
 import clevercsv
 
-from collectible import (Collectible, HealthBonus,
+from collectible import (Collectible, HealthBonus, Stimpack, Medikit,
                          ArmorBonus, GreenArmor, BlueArmor,
                          Clip, BoxOfBullets, ShotgunShells, BoxOfShotgunShells,
                          Rocket, BoxOfRockets, EnergyCell, EnergyCellPack,
@@ -82,6 +82,10 @@ class ObjectHandler:
             self.objects.append(WeaponPickup(self.engine, thing.pos, thing.angle, thing_info))
         elif thing_info["class"] == "HealthBonus":
             self.objects.append(HealthBonus(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "Stimpack":
+            self.objects.append(Stimpack(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "Medikit":
+            self.objects.append(Medikit(self.engine, thing.pos, thing.angle, thing_info))
         elif thing_info["class"] == "ArmorBonus":
             self.objects.append(ArmorBonus(self.engine, thing.pos, thing.angle, thing_info))
         elif thing_info["class"] == "Armor":
