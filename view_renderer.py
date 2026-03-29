@@ -20,6 +20,8 @@ class ViewRenderer:
         self.sprites = self.asset_data.sprites
         self.doomguy = self.asset_data.doomguy_faces
         self.status_bar = self.asset_data.status_bar
+        self.hud_numbers = self.asset_data.hud_numbers
+        self.ammo_glyphs = self.asset_data.ammo_glyphs
         self.textures = self.asset_data.textures
         self.sky_id = self.asset_data.sky_id
         self.sky_tex = self.asset_data.sky_tex
@@ -35,8 +37,6 @@ class ViewRenderer:
         # that screen location.
         self.debug_cursor = (WIDTH//2, HEIGHT //2)
         pg.font.init()
-        bar_h = self.status_bar.get_height()
-        self.health_font = pg.font.SysFont('papyrus,oldenglishtext,uncialantiqua,serif', int(bar_h * 0.55), bold=True)
         self.bubble_font = pg.font.SysFont('arial,helvetica,sans-serif', 28)
 
     # reset clip buffers every frame
@@ -150,10 +150,13 @@ class ViewRenderer:
     def draw_health(self):
         bar_h = self.status_bar.get_height()
         bar_x = H_WIDTH - self.status_bar.get_width() // 2
-        text = self.health_font.render(f'{max(0, self.player.health)}%', True, (255, 0, 0))
         x = bar_x + int(self.status_bar.get_width() * 0.09) + 100
-        y = HEIGHT - bar_h + (bar_h - text.get_height()) // 2 - 10
-        self.screen.blit(text, (x, y))
+        for ch in f'{max(0, self.player.health)}%':
+            glyph = self.hud_numbers.get(ch)
+            if glyph:
+                y = HEIGHT - bar_h + (bar_h - glyph.get_height()) // 2
+                self.screen.blit(glyph, (x, y))
+                x += glyph.get_width()
 
     def draw_talk_bubble(self, text):
         PADDING = 20
@@ -288,6 +291,65 @@ class ViewRenderer:
         for i, line in enumerate(lines):
             surf = font.render(line, True, TEXT_COLOR)
             self.screen.blit(surf, (bubble_x + PADDING, bubble_y + PADDING + i * line_h))
+
+    def draw_ammo(self):
+        bar_h = self.status_bar.get_height()
+        bar_x = H_WIDTH - self.status_bar.get_width() // 2
+        large = self.ammo_glyphs['large']
+        small = self.ammo_glyphs['small']
+
+        # Current weapon ammo — large yellow AMMNUM digits, left of status bar
+        ammo_type = WEAPON_AMMO_TYPE.get(self.player.current_weapon)
+        if ammo_type and large:
+            x = bar_x + 20
+            for ch in str(self.player.ammo[ammo_type]):
+                glyph = large.get(ch)
+                if glyph:
+                    y = HEIGHT - bar_h + (bar_h - glyph.get_height()) // 2
+                    self.screen.blit(glyph, (x, y))
+                    x += glyph.get_width()
+
+        # Four ammo-type counters — small gray STGNUM digits, right of status bar
+        if small:
+            row_h = bar_h // 4
+            glyph_h = next(iter(small.values())).get_height()
+            for i, atype in enumerate(('bullets', 'shells', 'rockets', 'cells')):
+                x = bar_x + int(self.status_bar.get_width() * 0.865)
+                y = HEIGHT - bar_h + i * row_h + (row_h - glyph_h) // 2
+                for ch in str(self.player.ammo[atype]):
+                    glyph = small.get(ch)
+                    if glyph:
+                        self.screen.blit(glyph, (x, y))
+                        x += glyph.get_width()
+
+    def draw_armor(self):
+        bar_h = self.status_bar.get_height()
+        bar_x = H_WIDTH - self.status_bar.get_width() // 2
+        x = bar_x + int(self.status_bar.get_width() * 0.59)
+        for ch in f'{max(0, self.player.armor)}%':
+            glyph = self.hud_numbers.get(ch)
+            if glyph:
+                y = HEIGHT - bar_h + (bar_h - glyph.get_height()) // 2
+                self.screen.blit(glyph, (x, y))
+                x += glyph.get_width()
+
+    def draw_armor_tint(self):
+        elapsed = pg.time.get_ticks() - self.player.armor_pickup_time
+        alpha = int(100 * max(0, 1 - elapsed / self.player.ARMOR_TINT_DURATION))
+        if alpha <= 0:
+            return
+        tint = pg.Surface((WIDTH, HEIGHT), pg.SRCALPHA)
+        tint.fill((0, 200, 0, alpha))
+        self.screen.blit(tint, (0, 0))
+
+    def draw_health_tint(self):
+        elapsed = pg.time.get_ticks() - self.player.health_pickup_time
+        alpha = int(100 * max(0, 1 - elapsed / self.player.HEALTH_TINT_DURATION))
+        if alpha <= 0:
+            return
+        tint = pg.Surface((WIDTH, HEIGHT), pg.SRCALPHA)
+        tint.fill((0, 100, 200, alpha))
+        self.screen.blit(tint, (0, 0))
 
     def draw_pain_tint(self):
         if not self.player.is_in_pain:

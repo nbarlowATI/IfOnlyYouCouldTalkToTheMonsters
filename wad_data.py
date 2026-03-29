@@ -16,7 +16,7 @@ class WADData:
         "DSDOROPN", "DSPISTOL", "DSSHOTGN", "DSBAREXP",
         "DSPOPAIN", "DSIMPPAIN",
         "DSPODTH1", "DSPODTH2", "DSPODTH3", "DSSGTDTH",
-        "DSPLPAIN", "DSWPNUP",
+        "DSPLPAIN", "DSWPNUP", "DSITEMUP",
     ]
 
     def __init__(self, engine, map_name):

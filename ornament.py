@@ -11,7 +11,7 @@ class Ornament(Thing):
         self.world_height = float(thing_info["height"])
         self.radius = float(thing_info["radius"])
         self.pre_cache(self.sprite_name_base)
-        self.extra_y_offset = 20
+        self.extra_y_offset = 0
 
     def update(self):
         super().update()
@@ -23,7 +23,7 @@ class ExplodingBarrel(Ornament):
         self.shootable = False
         self.line_of_sight = False
         self.health = 50
-        self.extra_y_offset = 30
+        self.extra_y_offset = 20
         self.is_exploding = False
         self.sound_effect = SoundEffect(SOUNDS["barrel_explode"], self.engine)
         # also pre-cache the explosion sprites

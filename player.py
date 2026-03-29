@@ -31,9 +31,19 @@ class Player:
         self.is_in_pain = False
         self.pain_start_time = 0
         self.PAIN_DURATION = 500  # ms the red tint lasts
+        self.HEALTH_TINT_DURATION = 300  # ms the blue tint lasts
+        self.health_pickup_time = 0
+        self.armor = 0
+        self.ARMOR_TINT_DURATION = 300
+        self.armor_pickup_time = 0
+        self.ammo = dict(AMMO_START)
+        self.max_ammo = dict(AMMO_MAX)
         pain_lump = "DSPLPAIN" if "DSPLPAIN" in self.engine.wad_data.sound_effects else "DSPOPAIN"
         self.pain_sound = SoundEffect(pain_lump, self.engine)
+        item_lump = "DSITEMUP" if "DSITEMUP" in self.engine.wad_data.sound_effects else "DSWPNUP"
+        self.item_sound = SoundEffect(item_lump, self.engine)
         self.inventory = {'none', 'pistol'}
+        self.friends = {}   # {"E1M1": [{"name": "Magnus", "species": "ZombieMan"}, ...]}
         pickup_lump = "DSWPNUP" if "DSWPNUP" in self.engine.wad_data.sound_effects else "DSPISTOL"
         self.pickup_sound = SoundEffect(pickup_lump, self.engine)
         self.shooting = False
@@ -81,8 +91,13 @@ class Player:
 
     def handle_fire_event(self, event):
         if event.button == 1 and not self.engine.weapon.shooting and not self.engine.weapon.reloading:
+            ammo_type = WEAPON_AMMO_TYPE.get(self.current_weapon)
+            if ammo_type and self.ammo[ammo_type] <= 0:
+                return
             self.engine.weapon.play_sound()
             self.engine.weapon.shooting = True
+            if ammo_type:
+                self.ammo[ammo_type] -= 1
 
 
     def update(self):
@@ -107,6 +122,7 @@ class Player:
                 self.lowering_weapon = False
                 self.raising_weapon = True
                 self.engine.weapon.current_weapon = self.selected_weapon
+                self.current_weapon = self.selected_weapon
             else:
                 self.weapon_y_offset += WEAPON_CHANGE_SPEED
     
@@ -206,6 +222,20 @@ class Player:
             return
         if check_segment(seg) == WALL_TYPE.DOOR and seg.linedef_id in self.engine.doors:
             self.engine.doors[seg.linedef_id].toggle_open()
+
+    def pick_up_health(self, amount):
+        self.health = min(100, self.health + amount)
+        self.item_sound.play()
+        self.health_pickup_time = pg.time.get_ticks()
+
+    def pick_up_ammo(self, ammo_type, amount):
+        self.ammo[ammo_type] = min(self.max_ammo[ammo_type], self.ammo[ammo_type] + amount)
+        self.item_sound.play()
+
+    def pick_up_armor(self, amount):
+        self.armor = min(200, self.armor + amount)
+        self.item_sound.play()
+        self.armor_pickup_time = pg.time.get_ticks()
 
     def pick_up_weapon(self, weapon_name):
         if weapon_name in self.inventory:

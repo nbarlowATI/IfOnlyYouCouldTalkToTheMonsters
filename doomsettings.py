@@ -87,6 +87,20 @@ WEAPON_RANGE = {
 }
 
 WEAPON_PICKUP_RADIUS = 40
+HEALTH_PICKUP_RADIUS = 40
+ARMOR_PICKUP_RADIUS  = 40
+AMMO_PICKUP_RADIUS   = 40
+
+WEAPON_AMMO_TYPE = {
+    'none':     None,
+    'chainsaw': None,
+    'pistol':   'bullets',
+    'shotgun':  'shells',
+    'chaingun': 'bullets',
+}
+
+AMMO_START = {'bullets': 50, 'shells': 0, 'rockets': 0, 'cells': 0}
+AMMO_MAX   = {'bullets': 200, 'shells': 50, 'rockets': 50, 'cells': 300}
 # Maps thing_info["class"] from thing_index.csv to internal weapon name
 WEAPON_CLASS_MAP = {
     'Shotgun':  'shotgun',
@@ -146,3 +160,4 @@ WAD_THING_FLAGS = {
 }
 
 OLLAMA_MODEL = "llama3.2:latest" #"qwen3-v1:8b"
+#OLLAMA_MODEL =  'deepseek-r1:8b' #'qwen3-vl:8b'

@@ -44,6 +44,7 @@ class DoomEngine:
         self.dt = 1 / 60
 
     def load(self, map_name="E1M1", difficulty=1):
+        self.map_name = map_name
         self.wad_data = WADData(self, map_name)
         self.map_renderer = MapRenderer(self)
         self.player = Player(self)
@@ -79,6 +80,12 @@ class DoomEngine:
                 npc.conversation_history.append({"player": player_text, "npc": text})
                 npc.friendliness = max(0, min(100, npc.friendliness + delta))
                 print(f"{npc.npc_name} friendliness: {npc.friendliness} (delta: {delta:+d})")
+                if npc.friendliness >= 60:
+                    level_friends = self.player.friends.setdefault(self.map_name, [])
+                    entry = {"name": npc.npc_name, "species": npc.species}
+                    if entry not in level_friends:
+                        level_friends.append(entry)
+                        print(f"New friend: {npc.npc_name} ({npc.species}) in {self.map_name}")
                 if self.npc_response_npc is npc:
                     self.npc_response_words = text.split()
                     self.npc_words_shown = 0
@@ -96,6 +103,11 @@ class DoomEngine:
                     self.npc_word_time = now
                     if self.npc_words_shown % 2 == 0 and self.npc_response_npc.pain_sound:
                         self.npc_response_npc.pain_sound.play_random_pitch()
+            elif self.npc_response_npc.friendliness <= 0:
+                # All words shown and NPC is now fully hostile — force-exit talk mode
+                self.talk_mode = False
+                self.talk_text = ""
+                self.npc_response_npc = None
         self.dt = self.clock.tick()
         pg.display.set_caption(f"{self.clock.get_fps()}")
         
@@ -115,11 +127,15 @@ class DoomEngine:
             for proj in self.object_handler.projectiles:
                 self.view_renderer.draw_sprite(proj)
             
+            self.view_renderer.draw_armor_tint()
+            self.view_renderer.draw_health_tint()
             self.view_renderer.draw_pain_tint()
             self.view_renderer.draw_weapon()
             self.view_renderer.draw_status_bar()
             self.view_renderer.draw_doomguy(self.player.face_img)
             self.view_renderer.draw_health()
+            self.view_renderer.draw_armor()
+            self.view_renderer.draw_ammo()
             if self.talk_mode:
                 self.view_renderer.draw_talk_bubble(self.talk_text)
             if self.npc_response_npc is not None:
@@ -224,7 +240,9 @@ class DoomEngine:
             raw = self.talk_engine.get_response(context, conversation)
             data = json.loads(raw.message.content)
             text = data.get('text', '')
+            player_score = int(data.get('player_score', 0))
             delta = int(data.get('friendliness_delta', 0))
+            print(f"  player_score: {player_score:+d}")
         except Exception as e:
             print(f"LLM response error: {e}")
             print(f"Raw response content: {repr(raw.message.content)}")

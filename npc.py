@@ -59,14 +59,19 @@ class NPC(Thing):
         self.shoot_anim_time = 0
         # Character identity — subclasses set TYPE_ID, then call _init_character_context()
         self.npc_name = "Unknown"
+        self.species = "Unknown"
         self.friendliness = 50
         self.conversation_history = []   # list of {"player": str, "npc": str}
         self.waiting_for_llm = False
+        self.active = False          # becomes True when player first enters this NPC's sector
 
     def _init_character_context(self):
         ctx = next((t for t in npc_types if t['type_id'] == self.TYPE_ID), None)
         if ctx:
             self.friendliness = ctx['friendliness']
+            self.species = ctx['species']
+        else:
+            self.species = "Unknown"
         self.npc_name = random.choice(npc_names.get(self.TYPE_ID, ["Unknown"]))
 
     def get_character_context(self):
@@ -193,6 +198,35 @@ class NPC(Thing):
         if self.engine.talk_mode:
             return
 
+        # Take damage when in crosshair and player fires — always, regardless of active/pacified state
+        if self.shootable and self.engine.weapon.shooting:
+            self.health -= WEAPON_DAMAGE[self.engine.player.current_weapon]
+            self.active = True   # being shot always wakes the NPC
+            if self.health <= 0:
+                self._trigger_death()
+                return
+            elif not self.is_in_pain:
+                self.state = NPCState.getting_hit
+                self._trigger_pain()
+
+        # Inactive: activate when the player enters the same sector OR comes close enough
+        # (A single visual room is often many sectors in Doom, so proximity is needed as fallback)
+        if not self.active:
+            dist = (self.engine.player.pos - self.pos).magnitude()
+            if dist < NPC_CHASE_RADIUS:
+                self.active = True
+            else:
+                player_sector = self.engine.bsp.get_sector(self.engine.player.pos)
+                npc_sector = self.engine.bsp.get_sector(self.pos)
+                if player_sector is npc_sector:
+                    self.active = True
+                else:
+                    return
+
+        # Pacified: sufficiently friendly NPCs stand still and don't attack
+        if self.friendliness >= 60:
+            return
+
         now = pg.time.get_ticks()
 
         # Recover from pain after duration elapses
@@ -234,15 +268,6 @@ class NPC(Thing):
 
         # Hitscan shooting at player
         self._try_shoot_hitscan(now)
-
-        # Take damage when in crosshair and player fires
-        if self.shootable and self.engine.weapon.shooting:
-            self.health -= WEAPON_DAMAGE[self.engine.player.current_weapon]
-            if self.health <= 0:
-                self._trigger_death()
-            elif not self.is_in_pain:
-                self.state = NPCState.getting_hit
-                self._trigger_pain()
 
 
 class ZombieMan(NPC):
@@ -333,6 +358,8 @@ class Imp(NPC):
         self.angle = 270 - math.degrees(math.atan2(dp.y, dp.x))
 
     def _try_fire(self):
+        if self.engine.talk_mode:
+            return
         now = pg.time.get_ticks()
         if now - self.last_fire_time < IMP_FIRE_COOLDOWN:
             return
