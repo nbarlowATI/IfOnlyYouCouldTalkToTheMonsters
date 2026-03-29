@@ -148,6 +148,16 @@ class NPC(Thing):
             if self.shoot_sound:
                 self.shoot_sound.play()
 
+    def take_damage(self, amount):
+        if self.state in (NPCState.dying, NPCState.dead):
+            return
+        self.health -= amount
+        self.active = True
+        if self.health <= 0:
+            self._trigger_death()
+        else:
+            self._trigger_pain()
+
     def _trigger_pain(self):
         if self.pain_frame:
             frame_cache = self.engine.object_handler.sprite_cache.get(self.sprite_name_base, {})

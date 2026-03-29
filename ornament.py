@@ -1,6 +1,6 @@
 import pygame as pg
 from thing import Thing
-from doomsettings import SOUNDS, WEAPON_DAMAGE
+from doomsettings import SOUNDS, WEAPON_DAMAGE, BARREL_EXPLOSION_RADIUS, BARREL_EXPLOSION_DAMAGE
 from sounds import SoundEffect
 
 
@@ -38,6 +38,15 @@ class ExplodingBarrel(Ornament):
         self.is_exploding = True
         self.sound_effect.play()
         self.sprite_name_base = "BEXP"
+        self._apply_splash_damage()
+
+    def _apply_splash_damage(self):
+        targets = list(self.engine.object_handler.npcs) + [self.engine.player]
+        for target in targets:
+            dist = (target.pos - self.pos).magnitude()
+            if dist < BARREL_EXPLOSION_RADIUS:
+                damage = int(BARREL_EXPLOSION_DAMAGE * (1 - dist / BARREL_EXPLOSION_RADIUS))
+                target.take_damage(damage)
 
     def animate_explosion(self):
         if self.animation_trigger:

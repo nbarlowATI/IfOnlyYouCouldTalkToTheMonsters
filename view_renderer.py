@@ -296,18 +296,15 @@ class ViewRenderer:
         bar_h = self.status_bar.get_height()
         bar_w = self.status_bar.get_width()
         bar_x = H_WIDTH - bar_w // 2
-        large = self.ammo_glyphs['large']
         small = self.ammo_glyphs['small']
-        # fall back to STTNUM if AMMNUM not in the WAD
-        large_glyphs = large if large else self.hud_numbers
 
         # Current weapon ammo — right-aligned to ~18.5% of bar width (matches Doom layout)
         ammo_type = WEAPON_AMMO_TYPE.get(self.player.current_weapon)
-        if ammo_type and large_glyphs:
+        if ammo_type:
             text = str(self.player.ammo[ammo_type])
-            glyphs = [large_glyphs.get(ch) for ch in text if large_glyphs.get(ch)]
+            glyphs = [self.hud_numbers.get(ch) for ch in text if self.hud_numbers.get(ch)]
             if glyphs:
-                right_edge = bar_x + int(bar_w * 0.185)
+                right_edge = bar_x + int(bar_w * 0.185) - 40
                 total_w = sum(g.get_width() for g in glyphs)
                 x = right_edge - total_w
                 glyph_h = glyphs[0].get_height()

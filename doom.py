@@ -45,6 +45,7 @@ class DoomEngine:
 
     def load(self, map_name="E1M1", difficulty=1):
         self.map_name = map_name
+        self.difficulty = difficulty
         self.wad_data = WADData(self, map_name)
         self.map_renderer = MapRenderer(self)
         self.player = Player(self)
@@ -315,6 +316,112 @@ class DoomEngine:
             clock.tick(70)  # 2× original DOOM tic rate
             if all_done:
                 break
+
+    def trigger_level_exit(self, seg):
+        # Flip switch texture: EXIT1→EXIT2, SW1xxx→SW2xxx
+        # Check both sidedefs and all texture slots
+        activated = False
+        for sidedef in (seg.linedef.front_sidedef, seg.linedef.back_sidedef):
+            if sidedef is None:
+                continue
+            for attr in ('middle_texture', 'upper_texture', 'lower_texture'):
+                tex = getattr(sidedef, attr)
+                if tex and tex.startswith('SW1'):
+                    target = 'SW2' + tex[3:]
+                    print(f"[SWITCH] {attr}={tex!r} -> {target!r}  target_in_textures={target in self.wad_data.asset_data.textures}")
+                    setattr(sidedef, attr, target)
+                    activated = True
+                elif tex == 'EXIT1':
+                    setattr(sidedef, attr, 'EXIT2')
+                    activated = True
+                else:
+                    print(f"[SWITCH] sidedef {attr}={tex!r}  in_textures={tex in self.wad_data.asset_data.textures}")
+        if not activated:
+            print("[SWITCH] no matching texture found — no visual change")
+        # Play switch sound, re-render so the new texture is in the framebuffer, then pause
+        from sounds import SoundEffect
+        switch_sound = SoundEffect('DSSWTCHN', self)
+        switch_sound.play()
+        self.view_renderer.reset_clip_buffers()
+        self.seg_handler.update()
+        self.bsp.update()
+        self.draw()
+        pg.time.wait(800)
+        current = self.screen.copy()
+        self._melt_transition(current)
+        next_map = self._show_intermission()
+        if self.running and next_map:
+            self.load(next_map, self.difficulty)
+
+    def _next_map(self):
+        ep = int(self.map_name[1])
+        mn = int(self.map_name[3])
+        if mn < 8:
+            return f"E{ep}M{mn + 1}"
+        return f"E{ep + 1}M1" if ep < 3 else None
+
+    def _show_intermission(self):
+        next_map = self._next_map()
+        assets = self.wad_data.asset_data.intermission
+
+        bg_raw = assets.get('background')
+        bg = pg.transform.scale(bg_raw, WIN_RES) if bg_raw else None
+
+        ep = int(self.map_name[1])
+        mn = int(self.map_name[3])
+        finished_img  = assets.get(f'WILV{ep - 1}{mn - 1}')
+        enter_label   = assets.get('entering')
+        entering_img  = None
+        if next_map:
+            nep, nmn = int(next_map[1]), int(next_map[3])
+            entering_img = assets.get(f'WILV{nep - 1}{nmn - 1}')
+
+        hud_font = self.wad_data.asset_data.hud_font
+        n_friends = len(self.player.friends.get(self.map_name, []))
+        friends_text = f"FRIENDS MADE: {n_friends}"
+
+        while self.running:
+            for e in pg.event.get():
+                if e.type == pg.QUIT or (e.type == pg.KEYDOWN and e.key == pg.K_ESCAPE):
+                    self.running = False
+                    return None
+                if e.type in (pg.KEYDOWN, pg.MOUSEBUTTONDOWN):
+                    self._melt_transition(self.screen.copy())
+                    return next_map
+
+            self.screen.blit(bg, (0, 0))
+
+            y = HEIGHT // 6
+            if finished_img:
+                x = (WIDTH - finished_img.get_width()) // 2
+                self.screen.blit(finished_img, (x, y))
+                y += finished_img.get_height() + 10
+
+            SPACE_W = 16
+            glyphs = [(hud_font[ch] if ch in hud_font else None) for ch in friends_text]
+            total_w = sum(g.get_width() if g else SPACE_W for g in glyphs)
+            glyph_h = next((g.get_height() for g in glyphs if g), 0)
+            x = (WIDTH - total_w) // 2
+            for g in glyphs:
+                if g:
+                    self.screen.blit(g, (x, y))
+                    x += g.get_width()
+                else:
+                    x += SPACE_W
+            y += glyph_h + 10
+
+            y = HEIGHT * 2 // 3
+            if enter_label:
+                x = (WIDTH - enter_label.get_width()) // 2
+                self.screen.blit(enter_label, (x, y))
+                y += enter_label.get_height() + 10
+            if entering_img:
+                x = (WIDTH - entering_img.get_width()) // 2
+                self.screen.blit(entering_img, (x, y))
+
+            pg.display.flip()
+            self.clock.tick(60)
+        return None
 
     def show_title_screen(self):
         img = pg.image.load('assets/title_screen.png')

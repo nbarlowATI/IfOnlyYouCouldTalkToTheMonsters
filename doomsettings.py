@@ -43,7 +43,7 @@ MIN_ROOM_HEIGHT = PLAYER_HEIGHT + 5
 MAX_STEP_HEIGHT = 24
 
 # from how far away can we activate a door?
-ACTIVATION_DIST = 200
+ACTIVATION_DIST = 300
 
 class WALL_TYPE(Enum):
     SOLID_WALL = 0
@@ -113,6 +113,8 @@ MAX_WEAPON_OFFSET = 200
 NPC_WALK_SPEED = 0.075           # world units per ms
 NPC_PATROL_TURN_INTERVAL = 3000  # ms between random direction changes
 NPC_CHASE_RADIUS = 600           # world units; NPC chases player within this range
+BARREL_EXPLOSION_RADIUS = 200    # world units
+BARREL_EXPLOSION_DAMAGE = 60     # damage at the centre, falls off linearly to zero at radius
 
 ZOMBIE_SHOOT_DAMAGE = 7
 ZOMBIE_SHOOT_COOLDOWN = 1500     # ms between shots

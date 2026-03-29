@@ -180,15 +180,23 @@ class Player:
         for collision_seg in collision_segs:
             if check_segment(collision_seg) != WALL_TYPE.DOOR:
                 continue
-            if collision_seg.linedef_id in self.engine.doors:
-                door = self.engine.doors[collision_seg.linedef_id]
+            lid = collision_seg.linedef_id
+            back = collision_seg.back_sector
+            ceil_clr = (back.ceil_height - back.floor_height) if back else 0
+            if lid in self.engine.doors:
+                door = self.engine.doors[lid]
                 if door.is_open or door.is_opening:
                     return pos + movement
             else:
-                # Door not yet registered — allow passage if ceiling clearance is enough.
-                back = collision_seg.back_sector
-                if back and (back.ceil_height - back.floor_height) > MIN_ROOM_HEIGHT:
-                    return pos + movement
+                # Not registered — check the door sector (lower-ceilinged of the two).
+                # Using back_sector alone is wrong when approaching from behind, because
+                # back_sector would then be the open room, not the door sector.
+                front = collision_seg.front_sector
+                if front and back:
+                    door_sector = front if front.ceil_height < back.ceil_height else back
+                    door_clr = door_sector.ceil_height - door_sector.floor_height
+                    if door_clr > MIN_ROOM_HEIGHT:
+                        return pos + movement
         # Second pass: apply wall physics for everything else.
         for collision_seg in collision_segs:
             wall_type = check_segment(collision_seg)
@@ -224,6 +232,9 @@ class Player:
         """
         seg = self.engine.raycaster.find_activatable_surface()
         if seg is None or not(isinstance(seg, Seg)):
+            return
+        if seg.linedef.line_type in (11, 51):
+            self.engine.trigger_level_exit(seg)
             return
         if check_segment(seg) == WALL_TYPE.DOOR and seg.linedef_id in self.engine.doors:
             self.engine.doors[seg.linedef_id].toggle_open()
