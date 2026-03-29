@@ -48,10 +48,20 @@ class MapRenderer:
         pg.draw.line(self.engine.screen, colour, (x1, 0), (x1, HEIGHT), 3)
         pg.draw.line(self.engine.screen, colour, (x2, 0), (x2, HEIGHT), 3)
 
+    def get_door_colour(self, linedef_id, linedef):
+        """Return a door colour if this linedef is a door, else None."""
+        if linedef.line_type != 1:
+            return None
+        door = self.engine.doors.get(linedef_id)
+        if door and (door.is_open or door.is_opening):
+            return (0, 140, 0)   # dark green — open
+        return (255, 140, 0)     # orange — closed
+
     def draw_seg(self, seg, sub_sector_id):
         v1 = self.vertexes[seg.start_vertex_id]
         v2 = self.vertexes[seg.end_vertex_id]
-        pg.draw.line(self.engine.screen, 'green', v1, v2, 4)
+        colour = self.get_door_colour(seg.linedef_id, seg.linedef) or 'green'
+        pg.draw.line(self.engine.screen, colour, v1, v2, 4)
 
     def draw_bbox(self, bbox, colour):
         x, y = self.remap_x(bbox.left), self.remap_y(bbox.top)
@@ -111,10 +121,11 @@ class MapRenderer:
 
 
     def draw_linedefs(self):
-        for line in self.linedefs:
+        for linedef_id, line in enumerate(self.linedefs):
             p1 = self.vertexes[line.start_vertex_id]
             p2 = self.vertexes[line.end_vertex_id]
-            pg.draw.line(self.engine.screen, 'red', p1, p2, 3)
+            colour = self.get_door_colour(linedef_id, line) or 'red'
+            pg.draw.line(self.engine.screen, colour, p1, p2, 3)
 
     def draw_vertices(self):
         for v in self.vertexes:

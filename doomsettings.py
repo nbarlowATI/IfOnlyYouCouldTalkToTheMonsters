@@ -43,7 +43,7 @@ MIN_ROOM_HEIGHT = PLAYER_HEIGHT + 5
 MAX_STEP_HEIGHT = 24
 
 # from how far away can we activate a door?
-ACTIVATION_DIST = 200
+ACTIVATION_DIST = 300
 
 class WALL_TYPE(Enum):
     SOLID_WALL = 0
@@ -87,6 +87,20 @@ WEAPON_RANGE = {
 }
 
 WEAPON_PICKUP_RADIUS = 40
+HEALTH_PICKUP_RADIUS = 40
+ARMOR_PICKUP_RADIUS  = 40
+AMMO_PICKUP_RADIUS   = 40
+
+WEAPON_AMMO_TYPE = {
+    'none':     None,
+    'chainsaw': None,
+    'pistol':   'bullets',
+    'shotgun':  'shells',
+    'chaingun': 'bullets',
+}
+
+AMMO_START = {'bullets': 50, 'shells': 0, 'rockets': 0, 'cells': 0}
+AMMO_MAX   = {'bullets': 200, 'shells': 50, 'rockets': 50, 'cells': 300}
 # Maps thing_info["class"] from thing_index.csv to internal weapon name
 WEAPON_CLASS_MAP = {
     'Shotgun':  'shotgun',
@@ -99,6 +113,8 @@ MAX_WEAPON_OFFSET = 200
 NPC_WALK_SPEED = 0.075           # world units per ms
 NPC_PATROL_TURN_INTERVAL = 3000  # ms between random direction changes
 NPC_CHASE_RADIUS = 600           # world units; NPC chases player within this range
+BARREL_EXPLOSION_RADIUS = 200    # world units
+BARREL_EXPLOSION_DAMAGE = 60     # damage at the centre, falls off linearly to zero at radius
 
 ZOMBIE_SHOOT_DAMAGE = 7
 ZOMBIE_SHOOT_COOLDOWN = 1500     # ms between shots
@@ -146,3 +162,4 @@ WAD_THING_FLAGS = {
 }
 
 OLLAMA_MODEL = "llama3.2:latest" #"qwen3-v1:8b"
+#OLLAMA_MODEL =  'deepseek-r1:8b' #'qwen3-vl:8b'

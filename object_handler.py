@@ -2,7 +2,11 @@ import pygame as pg
 from pygame.math import Vector2 as vec2
 import clevercsv
 
-from collectible import Collectible, WeaponPickup
+from collectible import (Collectible, HealthBonus, Stimpack, Medikit,
+                         ArmorBonus, GreenArmor, BlueArmor,
+                         Clip, BoxOfBullets, ShotgunShells, BoxOfShotgunShells,
+                         Rocket, BoxOfRockets, EnergyCell, EnergyCellPack,
+                         WeaponPickup)
 from doomsettings import WEAPON_CLASS_MAP
 from ornament import Ornament, ExplodingBarrel
 from npc import NPC, ZombieMan, ShotgunGuy, Imp
@@ -76,6 +80,34 @@ class ObjectHandler:
     def add_collectible(self, thing, thing_info):
         if thing_info["class"] in WEAPON_CLASS_MAP:
             self.objects.append(WeaponPickup(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "HealthBonus":
+            self.objects.append(HealthBonus(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "Stimpack":
+            self.objects.append(Stimpack(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "Medikit":
+            self.objects.append(Medikit(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "ArmorBonus":
+            self.objects.append(ArmorBonus(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "Armor":
+            self.objects.append(GreenArmor(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "MegaArmor":
+            self.objects.append(BlueArmor(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "Clip":
+            self.objects.append(Clip(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "BoxOfBullets":
+            self.objects.append(BoxOfBullets(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "ShotgunShells":
+            self.objects.append(ShotgunShells(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "BoxOfShotgunShells":
+            self.objects.append(BoxOfShotgunShells(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "Rocket":
+            self.objects.append(Rocket(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "BoxOfRockets":
+            self.objects.append(BoxOfRockets(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "EnergyCell":
+            self.objects.append(EnergyCell(self.engine, thing.pos, thing.angle, thing_info))
+        elif thing_info["class"] == "EnergyCellPack":
+            self.objects.append(EnergyCellPack(self.engine, thing.pos, thing.angle, thing_info))
         else:
             self.objects.append(Collectible(self.engine, thing.pos, thing.angle, thing_info))
 

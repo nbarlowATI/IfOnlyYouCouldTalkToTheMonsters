@@ -52,12 +52,15 @@ class RayCasting:
 #        print(f" aboout to cast a ray!")
         hit = self.cast_ray(ray_start, ray_vector, ACTIVATION_DIST)
         if hit:
- #           print(f"got a hit!!! {hit} {hit.linedef.line_type}")
             if isinstance(hit, Seg) and hit.linedef.line_type == 1:
-                if not hit.linedef_id in self.engine.doors:
+                if hit.linedef_id not in self.engine.doors:
                     new_door = Door(hit, self.engine)
-                    self.engine.doors[hit.linedef_id] = new_door
-                    self.engine.doors[hit.linedef_id+1] = new_door
+                    for offset in (-1, 0, 1):
+                        self.engine.doors[hit.linedef_id + offset] = new_door
+                    print(f"[DOOR REGISTERED] linedef_ids={hit.linedef_id-1},{hit.linedef_id},{hit.linedef_id+1}")
+                door = self.engine.doors[hit.linedef_id]
+                print(f"[DOOR TOGGLE] linedef_id={hit.linedef_id} "
+                      f"is_open={door.is_open} is_opening={door.is_opening}")
             return hit
         return None
         

@@ -31,9 +31,19 @@ class Player:
         self.is_in_pain = False
         self.pain_start_time = 0
         self.PAIN_DURATION = 500  # ms the red tint lasts
+        self.HEALTH_TINT_DURATION = 300  # ms the blue tint lasts
+        self.health_pickup_time = 0
+        self.armor = 0
+        self.ARMOR_TINT_DURATION = 300
+        self.armor_pickup_time = 0
+        self.ammo = dict(AMMO_START)
+        self.max_ammo = dict(AMMO_MAX)
         pain_lump = "DSPLPAIN" if "DSPLPAIN" in self.engine.wad_data.sound_effects else "DSPOPAIN"
         self.pain_sound = SoundEffect(pain_lump, self.engine)
+        item_lump = "DSITEMUP" if "DSITEMUP" in self.engine.wad_data.sound_effects else "DSWPNUP"
+        self.item_sound = SoundEffect(item_lump, self.engine)
         self.inventory = {'none', 'pistol'}
+        self.friends = {}   # {"E1M1": [{"name": "Magnus", "species": "ZombieMan"}, ...]}
         pickup_lump = "DSWPNUP" if "DSWPNUP" in self.engine.wad_data.sound_effects else "DSPISTOL"
         self.pickup_sound = SoundEffect(pickup_lump, self.engine)
         self.shooting = False
@@ -74,6 +84,11 @@ class Player:
             )
 
     def take_damage(self, amount):
+        if self.armor > 0:
+            reduction = 0.5 * (self.armor / 100)
+            absorbed = amount * reduction
+            self.armor = max(0, self.armor - absorbed)
+            amount = amount - absorbed
         self.health = max(0, self.health - amount)
         self.is_in_pain = True
         self.pain_start_time = pg.time.get_ticks()
@@ -81,8 +96,13 @@ class Player:
 
     def handle_fire_event(self, event):
         if event.button == 1 and not self.engine.weapon.shooting and not self.engine.weapon.reloading:
+            ammo_type = WEAPON_AMMO_TYPE.get(self.current_weapon)
+            if ammo_type and self.ammo[ammo_type] <= 0:
+                return
             self.engine.weapon.play_sound()
             self.engine.weapon.shooting = True
+            if ammo_type:
+                self.ammo[ammo_type] -= 1
 
 
     def update(self):
@@ -107,6 +127,7 @@ class Player:
                 self.lowering_weapon = False
                 self.raising_weapon = True
                 self.engine.weapon.current_weapon = self.selected_weapon
+                self.current_weapon = self.selected_weapon
             else:
                 self.weapon_y_offset += WEAPON_CHANGE_SPEED
     
@@ -159,15 +180,23 @@ class Player:
         for collision_seg in collision_segs:
             if check_segment(collision_seg) != WALL_TYPE.DOOR:
                 continue
-            if collision_seg.linedef_id in self.engine.doors:
-                door = self.engine.doors[collision_seg.linedef_id]
+            lid = collision_seg.linedef_id
+            back = collision_seg.back_sector
+            ceil_clr = (back.ceil_height - back.floor_height) if back else 0
+            if lid in self.engine.doors:
+                door = self.engine.doors[lid]
                 if door.is_open or door.is_opening:
                     return pos + movement
             else:
-                # Door not yet registered — allow passage if ceiling clearance is enough.
-                back = collision_seg.back_sector
-                if back and (back.ceil_height - back.floor_height) > MIN_ROOM_HEIGHT:
-                    return pos + movement
+                # Not registered — check the door sector (lower-ceilinged of the two).
+                # Using back_sector alone is wrong when approaching from behind, because
+                # back_sector would then be the open room, not the door sector.
+                front = collision_seg.front_sector
+                if front and back:
+                    door_sector = front if front.ceil_height < back.ceil_height else back
+                    door_clr = door_sector.ceil_height - door_sector.floor_height
+                    if door_clr > MIN_ROOM_HEIGHT:
+                        return pos + movement
         # Second pass: apply wall physics for everything else.
         for collision_seg in collision_segs:
             wall_type = check_segment(collision_seg)
@@ -188,7 +217,7 @@ class Player:
         # if in debug mode or talk mode, disable all movement
         if self.engine.debug_mode or self.engine.talk_mode:
             return
-        mx, my = pg.mouse.get_pos()
+        mx, _ = pg.mouse.get_pos()
         if mx < MOUSE_BORDER_LEFT or mx > MOUSE_BORDER_RIGHT:
             pg.mouse.set_pos([H_WIDTH, H_HEIGHT])
         self.rel = pg.mouse.get_rel()[0]
@@ -204,8 +233,25 @@ class Player:
         seg = self.engine.raycaster.find_activatable_surface()
         if seg is None or not(isinstance(seg, Seg)):
             return
+        if seg.linedef.line_type in (11, 51):
+            self.engine.trigger_level_exit(seg)
+            return
         if check_segment(seg) == WALL_TYPE.DOOR and seg.linedef_id in self.engine.doors:
             self.engine.doors[seg.linedef_id].toggle_open()
+
+    def pick_up_health(self, amount):
+        self.health = min(100, self.health + amount)
+        self.item_sound.play()
+        self.health_pickup_time = pg.time.get_ticks()
+
+    def pick_up_ammo(self, ammo_type, amount):
+        self.ammo[ammo_type] = min(self.max_ammo[ammo_type], self.ammo[ammo_type] + amount)
+        self.item_sound.play()
+
+    def pick_up_armor(self, amount):
+        self.armor = min(200, self.armor + amount)
+        self.item_sound.play()
+        self.armor_pickup_time = pg.time.get_ticks()
 
     def pick_up_weapon(self, weapon_name):
         if weapon_name in self.inventory:

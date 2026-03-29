@@ -11,9 +11,18 @@ class Door:
         self.is_open = False
         self.is_closed = True
         self.sound_effect = SoundEffect(SOUNDS["door_open"], self.engine)
-        self.target_height = self.segment.front_sector.ceil_height
+        # Always raise the sector with the lower ceiling (the door sector),
+        # regardless of which side was activated from.
+        fs, bs = segment.front_sector, segment.back_sector
+        if fs.ceil_height < bs.ceil_height:
+            self.door_sector = fs
+            self.target_height = bs.ceil_height
+        else:
+            self.door_sector = bs
+            self.target_height = fs.ceil_height
+        # Seal the door sector so there is no visible gap when closed
+        self.door_sector.ceil_height = self.door_sector.floor_height
         self.open_speed = DOOR_OPEN_SPEED
-        print(f"creating a door!!! {self.id}")
         
 
     def toggle_open(self):
@@ -27,15 +36,16 @@ class Door:
 
     def update(self):
         if self.is_opening:
-            if self.segment.back_sector.ceil_height == self.target_height:
+            if self.door_sector.ceil_height >= self.target_height:
                 print("DOOR OPEN!")
+                self.door_sector.ceil_height = self.target_height
                 self.is_opening = False
                 self.is_open = True
                 self.is_closed = False
             else:
-                self.segment.back_sector.ceil_height = min(
+                self.door_sector.ceil_height = min(
                     self.target_height,
-                    self.segment.back_sector.ceil_height + self.open_speed
+                    self.door_sector.ceil_height + self.open_speed
                 )
         if self.is_open:
             self.segment.linedef.front_sidedef.middle_texture = None

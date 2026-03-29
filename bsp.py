@@ -135,20 +135,22 @@ class BSP:
         dy = position.y - node.y_partition
         return dx * node.dy_partition - dy * node.dx_partition <= 0
 
-    def get_sub_sector_height(self, position=None):
+    def get_sector(self, position):
+        """Return the Sector object containing the given position."""
         sub_sector_id = self.root_node_id
         while not sub_sector_id >= self.SUB_SECTOR_IDENTIFIER:
             node = self.nodes[sub_sector_id]
-
             is_on_back = self.is_on_back_side(node, position)
             if is_on_back:
                 sub_sector_id = self.nodes[sub_sector_id].back_child_id
             else:
                 sub_sector_id = self.nodes[sub_sector_id].front_child_id
-
         sub_sector = self.sub_sectors[sub_sector_id - self.SUB_SECTOR_IDENTIFIER]
         seg = self.segments[sub_sector.first_seg_id]
-        return seg.front_sector.floor_height
+        return seg.front_sector
+
+    def get_sub_sector_height(self, position=None):
+        return self.get_sector(position).floor_height
     
     ## collision of player with walls
     def trace_collision(self, start_pos, end_pos, radius=None):

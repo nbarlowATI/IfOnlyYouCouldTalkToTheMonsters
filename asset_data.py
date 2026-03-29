@@ -107,6 +107,9 @@ class AssetData:
         self.sprites = self.get_sprites(start_marker="S_START", end_marker="S_END")
         self.status_bar = self.get_status_bar()
         self.doomguy_faces = self.get_doomguy()
+        self.hud_numbers = self.get_hud_numbers()
+        self.ammo_glyphs = self.get_ammo_glyphs()
+        self.hud_font = self.get_hud_font()
         # texture patch names
         self.p_names = self.wad_data.get_lump_data(
             self.reader.read_string,
@@ -136,6 +139,29 @@ class AssetData:
         self.sky_id = 'F_SKY1'
         self.sky_tex_name = 'SKY1'
         self.sky_tex = self.textures[self.sky_tex_name]
+
+        # intermission screen assets (loaded before reader closes)
+        self.intermission = self._load_intermission_assets()
+
+    def _load_patch_image(self, name):
+        """Load a single patch as a pygame Surface, or None if not found."""
+        p = Patch(self, name, is_sprite=False)
+        if not p.patch_index:
+            return None
+        return pg.transform.scale(p.image, (p.width * SCALE, p.height * SCALE))
+
+    def _load_intermission_assets(self):
+        assets = {}
+        assets['background'] = self._load_patch_image('WIMAP0')
+        assets['entering']   = self._load_patch_image('WIENTER')
+        # Level name patches for all three episodes: WILVen (e=episode-1, n=map-1)
+        for ep in range(3):
+            for mn in range(9):
+                name = f'WILV{ep}{mn}'
+                img = self._load_patch_image(name)
+                if img:
+                    assets[name] = img
+        return assets
 
     def load_texture_maps(self, texture_lump_name):
         tex_idx = self.get_lump_index(texture_lump_name)
@@ -168,6 +194,37 @@ class AssetData:
             lump["lump_name"] : Patch(self, lump["lump_name"]).image for lump in lumps_info
         }
         return faces
+
+    def get_ammo_glyphs(self):
+        """AMMNUM0-9: large yellow current-ammo digits; STGNUM0-9: small gray sidebar digits."""
+        large, small = {}, {}
+        for i in range(10):
+            s = str(i)
+            if self.get_lump_index(f'AMMNUM{i}'):
+                large[s] = Patch(self, f'AMMNUM{i}').image
+            if self.get_lump_index(f'STGNUM{i}'):
+                small[s] = Patch(self, f'STGNUM{i}').image
+        return {'large': large, 'small': small}
+
+    def get_hud_font(self):
+        """Load STCFN033-095 (ASCII 33-95: punctuation, digits, A-Z) as a dict keyed by character."""
+        glyphs = {}
+        for code in range(33, 96):
+            name = f'STCFN{code:03d}'
+            if self.get_lump_index(name):
+                glyphs[chr(code)] = Patch(self, name).image
+        return glyphs
+
+    def get_hud_numbers(self):
+        """Load the tall status-bar digit glyphs STTNUM0-9 and STTPRCNT (%)."""
+        glyphs = {}
+        for i in range(10):
+            name = f'STTNUM{i}'
+            if self.get_lump_index(name):
+                glyphs[str(i)] = Patch(self, name).image
+        if self.get_lump_index('STTPRCNT'):
+            glyphs['%'] = Patch(self, 'STTPRCNT').image
+        return glyphs
 
     def get_status_bar(self, name="STBAR"):
         idx = self.get_lump_index(name)
