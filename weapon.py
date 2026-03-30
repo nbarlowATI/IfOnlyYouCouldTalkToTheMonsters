@@ -1,7 +1,9 @@
 from collections import deque
 import math
 import pygame as pg
-from doomsettings import SOUNDS, H_WIDTH, HEIGHT, PLAYER_STEP_FREQUENCY, WEAPON_BOB_X_AMPLITUDE, WEAPON_BOB_Y_AMPLITUDE
+from doomsettings import (SOUNDS, H_WIDTH, HEIGHT, PLAYER_STEP_FREQUENCY,
+                           WEAPON_BOB_X_AMPLITUDE, WEAPON_BOB_Y_AMPLITUDE,
+                           WEAPON_Y_OFFSETS, WEAPON_AMMO_TYPE, AUTO_FIRE_WEAPONS)
 from sounds import SoundEffect
 
 class Weapon:
@@ -17,7 +19,9 @@ class Weapon:
         self.weapon_sprites = {}
         self.muzzle_flash_sprites = {}
         for k, v in self.sprite_bases.items():
-            self.weapon_sprites[k] = deque([s for s in self.engine.view_renderer.sprites if s.startswith(f"{v}G")])
+            # Exclude the idle GA0 frame — it's used for display only, not animation
+            self.weapon_sprites[k] = deque([s for s in self.engine.view_renderer.sprites
+                                            if s.startswith(f"{v}G") and not s.endswith("GA0")])
             self.muzzle_flash_sprites[k] = deque([s for s in self.engine.view_renderer.sprites if s.startswith(f"{v}F")])
         self.shooting = False
         self.reloading = False
@@ -42,6 +46,7 @@ class Weapon:
         self.set_sprite_position()
         self.check_animation_time()
         self.animate_shot()
+        self.check_auto_fire()
 
     def animate_shot(self):
         if self.reloading or self.shooting:
@@ -52,31 +57,38 @@ class Weapon:
     def set_sprite_position(self):
         if len(self.current_sprites) == 0:
             return
-        x_pos = H_WIDTH - self.current_sprites[0].get_width() //2 + self.x_bob_offset 
-        y_pos = HEIGHT - self.current_sprites[0].get_height() - self.engine.view_renderer.status_bar.get_height()+self.y_bob_offset + self.engine.player.weapon_y_offset
-        self.pos = (x_pos, y_pos)        
+        x_pos = H_WIDTH - self.current_sprites[0].get_width() //2 + self.x_bob_offset
+        y_pos = (HEIGHT - self.current_sprites[0].get_height()
+                 - self.engine.view_renderer.status_bar.get_height()
+                 + self.y_bob_offset
+                 + self.engine.player.weapon_y_offset
+                 + WEAPON_Y_OFFSETS.get(self.current_weapon, 0))
+        self.pos = (x_pos, y_pos)
 
     def set_current_sprite(self):
         if not self.shooting and not self.reloading:
             sprite_name = f"{self.sprite_bases[self.current_weapon]}GA0"
             self.current_sprites = [self.engine.view_renderer.sprites[sprite_name]]
         if self.shooting:
-            if self.frame_counter == len(self.muzzle_flash_sprites[self.current_weapon]):
+            flash_sprites = self.muzzle_flash_sprites[self.current_weapon]
+            if self.frame_counter >= len(flash_sprites):
                 self.shooting = False
                 self.reloading = True
-            else:                             
-                base_sprite_name = self.weapon_sprites[self.current_weapon][self.frame_counter]
-                flash_sprite_name = self.muzzle_flash_sprites[self.current_weapon][self.frame_counter]
+            else:
+                wsp = self.weapon_sprites[self.current_weapon]
+                base_sprite_name = wsp[self.frame_counter % max(1, len(wsp))]
+                flash_sprite_name = flash_sprites[self.frame_counter]
                 self.current_sprites = [
                     self.engine.view_renderer.sprites[base_sprite_name],
                     self.engine.view_renderer.sprites[flash_sprite_name]
                 ]
         if self.reloading:
-            if self.frame_counter == len(self.weapon_sprites[self.current_weapon]):
+            wsp = self.weapon_sprites[self.current_weapon]
+            if self.frame_counter >= len(wsp):
                 self.reloading = False
                 self.frame_counter = 0
             else:
-                base_sprite_name = self.weapon_sprites[self.current_weapon][self.frame_counter]
+                base_sprite_name = wsp[self.frame_counter]
                 self.current_sprites = [
                     self.engine.view_renderer.sprites[base_sprite_name],
                 ]
@@ -93,6 +105,24 @@ class Weapon:
             self.animation_time_prev = time_now
             self.animation_trigger = True
 
+
+    def check_auto_fire(self):
+        if self.current_weapon not in AUTO_FIRE_WEAPONS:
+            return
+        if self.engine.talk_mode or self.engine.debug_mode:
+            return
+        if self.shooting or self.reloading:
+            return
+        if not pg.mouse.get_pressed()[0]:
+            return
+        ammo_type = WEAPON_AMMO_TYPE.get(self.current_weapon)
+        if ammo_type and self.engine.player.ammo[ammo_type] <= 0:
+            return
+        self.play_sound()
+        self.shooting = True
+        self.frame_counter = 0
+        if ammo_type:
+            self.engine.player.ammo[ammo_type] -= 1
 
     def set_weapon_offsets(self):
         """

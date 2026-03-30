@@ -110,9 +110,25 @@ WEAPON_CLASS_MAP = {
 
 MAX_WEAPON_OFFSET = 200
 
+# Per-weapon vertical offset corrections (positive = lower on screen)
+WEAPON_Y_OFFSETS = {
+    'chaingun': 30,
+}
+
+# Weapons that fire continuously while mouse button is held
+AUTO_FIRE_WEAPONS = {'chaingun'}
+
 NPC_WALK_SPEED = 0.075           # world units per ms
 NPC_PATROL_TURN_INTERVAL = 3000  # ms between random direction changes
 NPC_CHASE_RADIUS = 600           # world units; NPC chases player within this range
+# Doom sector special types that deal periodic floor damage: type -> (damage, interval_ms)
+FLOOR_DAMAGE_SECTORS = {
+    5:  (10, 2000),   # nukage: 10 hp every 2 s
+    7:  (5,  2000),   # slow damage
+    16: (20, 2000),   # super nukage: 20 hp every 2 s
+    4:  (20, 2000),   # strobe + damage
+}
+
 BARREL_EXPLOSION_RADIUS = 200    # world units
 BARREL_EXPLOSION_DAMAGE = 60     # damage at the centre, falls off linearly to zero at radius
 

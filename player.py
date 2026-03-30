@@ -48,6 +48,7 @@ class Player:
         self.pickup_sound = SoundEffect(pickup_lump, self.engine)
         self.shooting = False
         self.reloading = False
+        self.floor_damage_timer = 0
         
 
     def get_view_height(self):
@@ -105,9 +106,22 @@ class Player:
                 self.ammo[ammo_type] -= 1
 
 
+    def check_floor_damage(self):
+        sector = self.engine.bsp.get_sector(self.pos)
+        entry = FLOOR_DAMAGE_SECTORS.get(sector.type)
+        if entry is None:
+            self.floor_damage_timer = pg.time.get_ticks()
+            return
+        damage, interval = entry
+        now = pg.time.get_ticks()
+        if now - self.floor_damage_timer >= interval:
+            self.floor_damage_timer = now
+            self.take_damage(damage)
+
     def update(self):
         if self.is_in_pain and pg.time.get_ticks() - self.pain_start_time > self.PAIN_DURATION:
             self.is_in_pain = False
+        self.check_floor_damage()
         self.get_height()
         self.get_view_height()
         self.control()
@@ -182,7 +196,6 @@ class Player:
                 continue
             lid = collision_seg.linedef_id
             back = collision_seg.back_sector
-            ceil_clr = (back.ceil_height - back.floor_height) if back else 0
             if lid in self.engine.doors:
                 door = self.engine.doors[lid]
                 if door.is_open or door.is_opening:
@@ -281,9 +294,6 @@ def check_segment(segment):
         pass
     floor_diff = segment.back_sector.floor_height - segment.front_sector.floor_height
     ceiling_clearance = segment.back_sector.ceil_height - segment.back_sector.floor_height
- #   print(f"step {floor_diff} clearance {ceiling_clearance}")
-    if floor_diff < MAX_STEP_HEIGHT and ceiling_clearance > MIN_ROOM_HEIGHT:
-
-  #      print(f"middle texture {segment.linedef.back_sidedef.middle_texture}")
+    if floor_diff <= MAX_STEP_HEIGHT and ceiling_clearance > MIN_ROOM_HEIGHT:
         return WALL_TYPE.PASSABLE
     return WALL_TYPE.IMPASSABLE

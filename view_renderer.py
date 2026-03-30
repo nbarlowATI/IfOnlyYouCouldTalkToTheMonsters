@@ -151,7 +151,7 @@ class ViewRenderer:
         bar_h = self.status_bar.get_height()
         bar_x = H_WIDTH - self.status_bar.get_width() // 2
         x = bar_x + int(self.status_bar.get_width() * 0.09) + 100
-        for ch in f'{max(0, self.player.health)}%':
+        for ch in f'{int(max(0, self.player.health))}%':
             glyph = self.hud_numbers.get(ch)
             if glyph:
                 y = HEIGHT - bar_h + (bar_h - glyph.get_height()) // 2
@@ -330,7 +330,7 @@ class ViewRenderer:
         bar_h = self.status_bar.get_height()
         bar_x = H_WIDTH - self.status_bar.get_width() // 2
         x = bar_x + int(self.status_bar.get_width() * 0.59)
-        for ch in f'{max(0, self.player.armor)}%':
+        for ch in f'{int(max(0, self.player.armor))}%':
             glyph = self.hud_numbers.get(ch)
             if glyph:
                 y = HEIGHT - bar_h + (bar_h - glyph.get_height()) // 2
