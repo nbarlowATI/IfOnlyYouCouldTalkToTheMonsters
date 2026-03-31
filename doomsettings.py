@@ -61,29 +61,33 @@ WEAPON_BUTTONS = {
     '3': "pistol",
     '4': "shotgun",
     '5': "chaingun",
+    '6': "rocket_launcher",
 }
 WEAPON_SPRITES = {
-    'none':     'PUNGA0',
-    'chainsaw': 'SAWGA0',
-    'pistol':   'PISGA0',
-    'shotgun':  'SHTGA0',
-    'chaingun': 'CHGGA0',
+    'none':            'PUNGA0',
+    'chainsaw':        'SAWGA0',
+    'pistol':          'PISGA0',
+    'shotgun':         'SHTGA0',
+    'chaingun':        'CHGGA0',
+    'rocket_launcher': 'MISGA0',
 }
 
 WEAPON_DAMAGE = {
-    'none':     0,
-    'chainsaw': 40,
-    'pistol':   20,
-    'shotgun':  50,
-    'chaingun': 10,
+    'none':            0,
+    'chainsaw':        40,
+    'pistol':          20,
+    'shotgun':         50,
+    'chaingun':        10,
+    'rocket_launcher': 100,
 }
 
 WEAPON_RANGE = {
-    'none':     500,
-    'chainsaw': 80,
-    'pistol':   2000,
-    'shotgun':  500,
-    'chaingun': 2000,
+    'none':            500,
+    'chainsaw':        80,
+    'pistol':          2000,
+    'shotgun':         500,
+    'chaingun':        2000,
+    'rocket_launcher': 2000,
 }
 
 WEAPON_PICKUP_RADIUS = 40
@@ -92,20 +96,22 @@ ARMOR_PICKUP_RADIUS  = 40
 AMMO_PICKUP_RADIUS   = 40
 
 WEAPON_AMMO_TYPE = {
-    'none':     None,
-    'chainsaw': None,
-    'pistol':   'bullets',
-    'shotgun':  'shells',
-    'chaingun': 'bullets',
+    'none':            None,
+    'chainsaw':        None,
+    'pistol':          'bullets',
+    'shotgun':         'shells',
+    'chaingun':        'bullets',
+    'rocket_launcher': 'rockets',
 }
 
 AMMO_START = {'bullets': 50, 'shells': 0, 'rockets': 0, 'cells': 0}
 AMMO_MAX   = {'bullets': 200, 'shells': 50, 'rockets': 50, 'cells': 300}
 # Maps thing_info["class"] from thing_index.csv to internal weapon name
 WEAPON_CLASS_MAP = {
-    'Shotgun':  'shotgun',
-    'Chainsaw': 'chainsaw',
-    'Chaingun': 'chaingun',
+    'Shotgun':         'shotgun',
+    'Chainsaw':        'chainsaw',
+    'Chaingun':        'chaingun',
+    'RocketLauncher':  'rocket_launcher',
 }
 
 MAX_WEAPON_OFFSET = 200
@@ -130,7 +136,11 @@ FLOOR_DAMAGE_SECTORS = {
 }
 
 BARREL_EXPLOSION_RADIUS = 200    # world units
-BARREL_EXPLOSION_DAMAGE = 60     # damage at the centre, falls off linearly to zero at radius
+BARREL_EXPLOSION_DAMAGE = 180
+
+ROCKET_SPEED = 0.7                # world units per ms
+ROCKET_EXPLOSION_RADIUS = 300     # world units
+ROCKET_EXPLOSION_DAMAGE = 120     # damage at centre, linear falloff to zero at radius     # damage at the centre, falls off linearly to zero at radius
 
 ZOMBIE_SHOOT_DAMAGE = 7
 ZOMBIE_SHOOT_COOLDOWN = 1500     # ms between shots
@@ -147,14 +157,16 @@ IMP_FIREBALL_DAMAGE = 8
 IMP_FIRE_COOLDOWN = 2500      # ms between shots
 
 SOUNDS = {
-    'pistol':         "DSPISTOL",
-    'chaingun':       "DSPISTOL",
-    'shotgun':        "DSSHOTGN",
-    'barrel_explode': "DSBAREXP",
-    'door_open':      "DSDOROPN",
-    'pain':           "DSPOSACT",
-    'death':          "DSPOSDTH",
-    'weapon_pickup':  "DSWPNUP",
+    'pistol':          "DSPISTOL",
+    'chaingun':        "DSPISTOL",
+    'shotgun':         "DSSHOTGN",
+    'rocket_launcher': "DSRLAUNC",
+    'barrel_explode':  "DSBAREXP",
+    'rocket_explode':  "DSRXPLOD",
+    'door_open':       "DSDOROPN",
+    'pain':            "DSPOSACT",
+    'death':           "DSPOSDTH",
+    'weapon_pickup':   "DSWPNUP",
 }
 
 # sprites in the WAD file are larger than world space

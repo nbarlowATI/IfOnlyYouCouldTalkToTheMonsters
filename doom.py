@@ -44,12 +44,22 @@ class DoomEngine:
         self.dt = 1 / 60
 
     def load(self, map_name="E1M1", difficulty=1):
+        # Carry over weapons and ammo from the previous level (if any)
+        prev_inventory      = set(getattr(getattr(self, 'player', None), 'inventory', {'none', 'pistol'}))
+        prev_ammo           = dict(getattr(getattr(self, 'player', None), 'ammo', {}))
+        prev_current_weapon = getattr(getattr(self, 'player', None), 'current_weapon', 'pistol')
+
         self.map_name = map_name
         self.difficulty = difficulty
         self.wad_data = WADData(self, map_name)
         self.map_renderer = MapRenderer(self)
         self.player = Player(self)
-        
+        if prev_ammo:
+            self.player.inventory      = prev_inventory
+            self.player.ammo           = prev_ammo
+            self.player.current_weapon = prev_current_weapon
+            self.player.selected_weapon = prev_current_weapon
+
         self.bsp = BSP(self)
         self.raycaster = RayCasting(self)
         self.seg_handler = SegHandler(self)
@@ -57,6 +67,7 @@ class DoomEngine:
         self.object_handler = ObjectHandler(self)
         self.object_handler.add_objects_npcs(difficulty)
         self.weapon = Weapon(self)
+        self.weapon.current_weapon = prev_current_weapon
         self.doors = {}
         # set timer to change doomguy face every 2s
         pg.time.set_timer(DOOMGUY_FACE_CHANGE_EVENT, 2000)

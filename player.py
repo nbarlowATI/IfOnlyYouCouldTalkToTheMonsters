@@ -104,6 +104,18 @@ class Player:
             self.engine.weapon.shooting = True
             if ammo_type:
                 self.ammo[ammo_type] -= 1
+            if self.current_weapon == 'rocket_launcher':
+                self._fire_rocket()
+
+    def _fire_rocket(self):
+        from projectile import PlayerRocket
+        angle_rad = math.radians(self.angle)
+        direction = vec2(math.cos(angle_rad), math.sin(angle_rad))
+        # Spawn slightly ahead of the player so it doesn't self-collide
+        spawn_pos = vec2(self.pos) + direction * (self.size * 1.5)
+        spawn_z = self.height
+        rocket = PlayerRocket(self.engine, spawn_pos, direction, spawn_z)
+        self.engine.object_handler.projectiles.append(rocket)
 
 
     def check_floor_damage(self):
@@ -254,6 +266,12 @@ class Player:
 
     def pick_up_health(self, amount):
         self.health = min(100, self.health + amount)
+        self.item_sound.play()
+        self.health_pickup_time = pg.time.get_ticks()
+
+    def pick_up_health_bonus(self, amount):
+        """Health bonuses (blue bottles) can push health above 100, up to 200."""
+        self.health = min(200, self.health + amount)
         self.item_sound.play()
         self.health_pickup_time = pg.time.get_ticks()
 
