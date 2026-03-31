@@ -10,4 +10,5 @@ dependencies = [
     "numpy>=2.2.6",
     "ollama>=0.6.1",
     "pygame>=2.6.1",
+    "websockets>=13.0",
 ]

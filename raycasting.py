@@ -49,7 +49,6 @@ class RayCasting:
         ray_start = self.player.pos
         angle_rad = math.radians(self.player.angle)
         ray_vector = vec2(math.cos(angle_rad), math.sin(angle_rad))
-#        print(f" aboout to cast a ray!")
         hit = self.cast_ray(ray_start, ray_vector, ACTIVATION_DIST)
         if hit:
             if isinstance(hit, Seg) and hit.linedef.line_type == 1:
@@ -57,10 +56,6 @@ class RayCasting:
                     new_door = Door(hit, self.engine)
                     for offset in (-1, 0, 1):
                         self.engine.doors[hit.linedef_id + offset] = new_door
-                    print(f"[DOOR REGISTERED] linedef_ids={hit.linedef_id-1},{hit.linedef_id},{hit.linedef_id+1}")
-                door = self.engine.doors[hit.linedef_id]
-                print(f"[DOOR TOGGLE] linedef_id={hit.linedef_id} "
-                      f"is_open={door.is_open} is_opening={door.is_opening}")
             return hit
         return None
         
