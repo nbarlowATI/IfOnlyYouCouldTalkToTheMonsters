@@ -190,4 +190,7 @@ WAD_THING_FLAGS = {
 }
 
 OLLAMA_MODEL = "llama3.2:latest" #"qwen3-v1:8b"
+
+# WebSocket server to connect to for remote control / messages
+WS_SERVER_URL = "ws://localhost:8080"
 #OLLAMA_MODEL =  'deepseek-r1:8b' #'qwen3-vl:8b'

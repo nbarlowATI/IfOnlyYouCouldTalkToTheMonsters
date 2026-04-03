@@ -167,20 +167,21 @@ class Player:
         rot_speed = PLAYER_ROT_SPEED * self.engine.dt
 
         key_state = pg.key.get_pressed()
-        if key_state[pg.K_LEFT]:
+        ws = self.engine.ws_client
+        if key_state[pg.K_LEFT] or ws.is_key_held("leftarrow"):
             self.angle += rot_speed
-        if key_state[pg.K_RIGHT]:
+        if key_state[pg.K_RIGHT] or ws.is_key_held("rightarrow"):
             self.angle -= rot_speed
-       
+
         inc = vec2(0)
-        if key_state[pg.K_a]:
+        if key_state[pg.K_a] or ws.is_key_held("A"):
             inc += vec2(0, speed)
-        if key_state[pg.K_d]:
+        if key_state[pg.K_d] or ws.is_key_held("D"):
             inc += vec2(0, -speed)
-        if key_state[pg.K_w]:
+        if key_state[pg.K_w] or ws.is_key_held("W"):
             inc += vec2(speed, 0)
-        if key_state[pg.K_s]:
-            inc += vec2(-speed,0)
+        if key_state[pg.K_s] or ws.is_key_held("S"):
+            inc += vec2(-speed, 0)
 
         if inc.x and inc.y:
             inc *= self.DIAG_MOVE_CORR

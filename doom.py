@@ -17,6 +17,7 @@ from weapon import Weapon
 from events import *
 from doomsettings import *
 from talk import Talk
+from ws_client import WSClient
 
 
 class DoomEngine:
@@ -42,6 +43,9 @@ class DoomEngine:
         self.clock = pg.time.Clock()
         self.running = True
         self.dt = 1 / 60
+        self._ws_speech_submit_at = None   # pg.time.get_ticks() value at which to auto-submit
+        self.ws_client = WSClient()
+        self.ws_client.start()
 
     def load(self, map_name="E1M1", difficulty=1):
         # Carry over weapons and ammo from the previous level (if any)
@@ -72,7 +76,68 @@ class DoomEngine:
         # set timer to change doomguy face every 2s
         pg.time.set_timer(DOOMGUY_FACE_CHANGE_EVENT, 2000)
 
+    def _submit_talk(self):
+        """Submit talk_text to the nearest NPC, exactly as the Enter key does."""
+        nearest_npc = None
+        nearest_dist = self.NPC_TALK_RANGE
+        for npc in self.object_handler.npcs:
+            d = (npc.pos - self.player.pos).magnitude()
+            if d < nearest_dist:
+                nearest_dist = d
+                nearest_npc = npc
+        if nearest_npc and not nearest_npc.waiting_for_llm:
+            player_text = self.talk_text
+            self.talk_text = ""
+            self.npc_response_npc = nearest_npc
+            self.npc_response_words = ["..."]
+            self.npc_words_shown = 1
+            self.npc_word_time = pg.time.get_ticks()
+            nearest_npc.waiting_for_llm = True
+            threading.Thread(
+                target=self._fetch_npc_response,
+                args=(nearest_npc, player_text),
+                daemon=True,
+            ).start()
+        else:
+            self.talk_mode = False
+            self.talk_text = ""
+            self.npc_response_npc = None
+
+    def _process_ws_actions(self):
+        while self.ws_client.pending_actions:
+            action = self.ws_client.pending_actions.popleft()
+            if action == "fire":
+                ammo_type = WEAPON_AMMO_TYPE.get(self.player.current_weapon)
+                if not (self.weapon.shooting or self.weapon.reloading):
+                    if not (ammo_type and self.player.ammo[ammo_type] <= 0):
+                        self.weapon.play_sound()
+                        self.weapon.shooting = True
+                        self.weapon.frame_counter = 0
+                        if ammo_type:
+                            self.player.ammo[ammo_type] -= 1
+                        if self.player.current_weapon == 'rocket_launcher':
+                            self.player._fire_rocket()
+            elif action == "interact":
+                self.player.handle_action()
+            elif action == "talk mode on":
+                self.talk_mode = True
+            elif action == "talk mode off":
+                self.talk_mode = False
+            elif action.startswith("speech "):
+                text = action[7:]
+                self.talk_mode = True
+                self.talk_text = text
+                self.npc_response_npc = None
+                self._ws_speech_submit_at = pg.time.get_ticks() + 5000
+
+        # Auto-submit speech after 5-second display window
+        if self._ws_speech_submit_at and pg.time.get_ticks() >= self._ws_speech_submit_at:
+            self._ws_speech_submit_at = None
+            if self.talk_text:
+                self._submit_talk()
+
     def update(self):
+        self._process_ws_actions()
         # reset view renderer's clip buffers, used to correctly occlude sprites
         self.view_renderer.reset_clip_buffers()
         self.player.update()
@@ -178,32 +243,7 @@ class DoomEngine:
                             self.talk_text = ""
                             self.npc_response_npc = None
                         else:
-                            # Find nearest NPC within talk range
-                            nearest_npc = None
-                            nearest_dist = self.NPC_TALK_RANGE
-                            for npc in self.object_handler.npcs:
-                                d = (npc.pos - self.player.pos).magnitude()
-                                if d < nearest_dist:
-                                    nearest_dist = d
-                                    nearest_npc = npc
-                            if nearest_npc and not nearest_npc.waiting_for_llm:
-                                player_text = self.talk_text
-                                self.talk_text = ""
-                                self.npc_response_npc = nearest_npc
-                                self.npc_response_words = ["..."]
-                                self.npc_words_shown = 1
-                                self.npc_word_time = pg.time.get_ticks()
-                                nearest_npc.waiting_for_llm = True
-                                threading.Thread(
-                                    target=self._fetch_npc_response,
-                                    args=(nearest_npc, player_text),
-                                    daemon=True,
-                                ).start()
-                            else:
-                                # No NPC nearby — exit talk mode normally
-                                self.talk_mode = False
-                                self.talk_text = ""
-                                self.npc_response_npc = None
+                            self._submit_talk()
                     elif e.key == pg.K_BACKSPACE:
                         self.talk_text = self.talk_text[:-1]
                     elif e.unicode and e.unicode.isprintable():
@@ -331,24 +371,15 @@ class DoomEngine:
     def trigger_level_exit(self, seg):
         # Flip switch texture: EXIT1→EXIT2, SW1xxx→SW2xxx
         # Check both sidedefs and all texture slots
-        activated = False
         for sidedef in (seg.linedef.front_sidedef, seg.linedef.back_sidedef):
             if sidedef is None:
                 continue
             for attr in ('middle_texture', 'upper_texture', 'lower_texture'):
                 tex = getattr(sidedef, attr)
                 if tex and tex.startswith('SW1'):
-                    target = 'SW2' + tex[3:]
-                    print(f"[SWITCH] {attr}={tex!r} -> {target!r}  target_in_textures={target in self.wad_data.asset_data.textures}")
-                    setattr(sidedef, attr, target)
-                    activated = True
+                    setattr(sidedef, attr, 'SW2' + tex[3:])
                 elif tex == 'EXIT1':
                     setattr(sidedef, attr, 'EXIT2')
-                    activated = True
-                else:
-                    print(f"[SWITCH] sidedef {attr}={tex!r}  in_textures={tex in self.wad_data.asset_data.textures}")
-        if not activated:
-            print("[SWITCH] no matching texture found — no visual change")
         # Play switch sound, re-render so the new texture is in the framebuffer, then pause
         from sounds import SoundEffect
         switch_sound = SoundEffect('DSSWTCHN', self)
@@ -455,6 +486,7 @@ class DoomEngine:
             self.update()
             self.check_events()
             self.draw()
+        self.ws_client.stop()
         pg.quit()
         sys.exit()
 

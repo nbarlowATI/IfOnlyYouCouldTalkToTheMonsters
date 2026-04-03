@@ -37,7 +37,6 @@ class Door:
     def update(self):
         if self.is_opening:
             if self.door_sector.ceil_height >= self.target_height:
-                print("DOOR OPEN!")
                 self.door_sector.ceil_height = self.target_height
                 self.is_opening = False
                 self.is_open = True
